@@ -1,0 +1,133 @@
+{
+  "layout_version": 1,
+  "dashboard_name": "销售与活跃日报",
+  "source_domain": "用户增长",
+  "target_domain": "营收分析",
+  "refresh_interval": "每日",
+  "cards": [
+    {
+      "card_id": "sales",
+      "title": "销售额",
+      "type": "number",
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "metric": {
+        "name": "销售额",
+        "code": "SALES_AMT_D",
+        "domain": "用户增长",
+        "caliber": "按自然日汇总后取日均销售额",
+        "aggregator": "AVG",
+        "granularity": "按日"
+      },
+      "data": {
+        "time_field": "stat_hour",
+        "value_field": "amount",
+        "unit": "元",
+        "rows": [
+          {
+            "stat_hour": "2026-11-19T09:00:00",
+            "amount": 400
+          },
+          {
+            "stat_hour": "2026-11-19T12:00:00",
+            "amount": 500
+          },
+          {
+            "stat_hour": "2026-11-19T18:00:00",
+            "amount": 300
+          },
+          {
+            "stat_hour": "2026-11-20T09:00:00",
+            "amount": 600
+          },
+          {
+            "stat_hour": "2026-11-20T12:00:00",
+            "amount": 700
+          },
+          {
+            "stat_hour": "2026-11-20T18:00:00",
+            "amount": 500
+          }
+        ]
+      }
+    },
+    {
+      "card_id": "active_device",
+      "title": "活跃设备数",
+      "type": "number",
+      "x": 1,
+      "y": 0,
+      "w": 1,
+      "h": 1,
+      "metric": {
+        "name": "活跃设备数",
+        "code": "ACTIVE_DEVICE_D",
+        "domain": "用户增长",
+        "caliber": "当日有活跃行为的设备去重计数",
+        "aggregator": "DISTINCT_COUNT",
+        "granularity": "按日"
+      },
+      "data": {
+        "time_field": "stat_hour",
+        "value_field": "device_id",
+        "unit": "台",
+        "rows": [
+          {
+            "stat_hour": "2026-11-19T09:00:00",
+            "device_id": "d1"
+          },
+          {
+            "stat_hour": "2026-11-19T09:00:00",
+            "device_id": "d2"
+          },
+          {
+            "stat_hour": "2026-11-19T09:00:00",
+            "device_id": "d3"
+          },
+          {
+            "stat_hour": "2026-11-19T12:00:00",
+            "device_id": "d2"
+          },
+          {
+            "stat_hour": "2026-11-19T12:00:00",
+            "device_id": "d4"
+          },
+          {
+            "stat_hour": "2026-11-19T18:00:00",
+            "device_id": "d5"
+          },
+          {
+            "stat_hour": "2026-11-19T18:00:00",
+            "device_id": "d6"
+          },
+          {
+            "stat_hour": "2026-11-20T09:00:00",
+            "device_id": "d4"
+          },
+          {
+            "stat_hour": "2026-11-20T09:00:00",
+            "device_id": "d7"
+          },
+          {
+            "stat_hour": "2026-11-20T12:00:00",
+            "device_id": "d7"
+          },
+          {
+            "stat_hour": "2026-11-20T12:00:00",
+            "device_id": "d8"
+          },
+          {
+            "stat_hour": "2026-11-20T12:00:00",
+            "device_id": "d9"
+          },
+          {
+            "stat_hour": "2026-11-20T18:00:00",
+            "device_id": "d10"
+          }
+        ]
+      }
+    }
+  ]
+}

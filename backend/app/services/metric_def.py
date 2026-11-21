@@ -51,7 +51,7 @@ class MetricDefService(BaseModuleService):
         ]
 
     def resolve_metric_caliber(self, metric_code: str) -> dict[str, Any] | None:
-        """解析指标口径（用于语义层映射）。"""
+        """解析指标口径（用于语义层映射和跨域布局导入核验）。"""
         rows = store.rows(self.MODULE)
         for row in rows:
             if row.get("指标编码") == metric_code:
@@ -63,7 +63,62 @@ class MetricDefService(BaseModuleService):
                     "aggregator": row.get("聚合函数"),
                     "granularity": row.get("数据粒度"),
                     "additive": row.get("是否可累加"),
+                    "caliber_version": int(row.get("_caliber_version", 1)),
                 }
+        return None
+
+    def find_metric_by_name(self, name: str, domain: str) -> dict[str, Any] | None:
+        """按名称在指定业务域内查找指标，只返回唯一命中；同名多条返回 None 由调用方处理。"""
+        matches = [
+            row for row in store.rows(self.MODULE)
+            if str(row.get("指标名称", "")).strip() == str(name).strip()
+            and str(row.get("业务域", "")).strip() == str(domain).strip()
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def list_domain_metrics(self, domain: str) -> list[dict[str, Any]]:
+        return [
+            row for row in store.rows(self.MODULE)
+            if str(row.get("业务域", "")).strip() == str(domain).strip()
+        ]
+
+    def update_caliber(
+        self, metric_code: str, *,
+        caliber: str,
+        aggregator: str | None = None,
+        granularity: str | None = None,
+        changed_by: str = "",
+    ) -> dict[str, Any] | None:
+        """变更指标口径并递增版本号；返回变更前后快照供订阅端定位历史绑定。"""
+        for row in store.rows(self.MODULE):
+            if row.get("指标编码") != metric_code:
+                continue
+            before = {
+                "caliber": row.get("计算口径"),
+                "aggregator": row.get("聚合函数"),
+                "granularity": row.get("数据粒度"),
+                "caliber_version": int(row.get("_caliber_version", 1)),
+            }
+            row["计算口径"] = caliber
+            if aggregator:
+                row["聚合函数"] = aggregator
+            if granularity:
+                row["数据粒度"] = granularity
+            row["_caliber_version"] = before["caliber_version"] + 1
+            return {
+                "ok": True,
+                "metric_code": metric_code,
+                "metric_name": row.get("指标名称"),
+                "domain": row.get("业务域"),
+                "before": before,
+                "after": {
+                    "caliber": row.get("计算口径"),
+                    "aggregator": row.get("聚合函数"),
+                    "granularity": row.get("数据粒度"),
+                    "caliber_version": row.get("_caliber_version"),
+                },
+                "changed_by": changed_by,
+            }
         return None
 
     def domain_snapshot(self) -> dict[str, Any]:

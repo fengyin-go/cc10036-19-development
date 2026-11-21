@@ -109,3 +109,6 @@ desktop.ini
 !**/.env.example
 !.env.example
 # END S11 LOCAL SNAPSHOT EXCLUSIONS
+
+# ===== 布局导入运行期文件 =====
+backend/runtime/

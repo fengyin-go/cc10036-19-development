@@ -26,6 +26,25 @@ class DashboardLayoutService(BaseModuleService):
             if row.get("status") == "已发布"
         ]
 
+    def get_entry(self, entry_id: int) -> dict[str, Any] | None:
+        entry = super().get_entry(entry_id)
+        if entry is None:
+            return None
+        return self._with_bindings(entry)
+
+    def _with_bindings(self, entry: dict[str, Any]) -> dict[str, Any]:
+        """布局详情同步展示导入时实际采用的绑定，便于和订阅日报对照。"""
+        import_id = entry.get("_import_id")
+        if not import_id:
+            return entry
+        from app.services import layout_import
+
+        return {
+            **entry,
+            "来源布局导入": import_id,
+            "指标绑定": layout_import.binding_snapshot_for_import(int(import_id)),
+        }
+
     def parse_layout(self, dashboard_id: int) -> dict[str, Any]:
         """解析看板布局配置，拆分为独立的图表卡片。"""
         dashboard = store.find(self.MODULE, dashboard_id)
@@ -45,7 +64,7 @@ class DashboardLayoutService(BaseModuleService):
                     "x": int(parts[4]) if len(parts) > 4 else 0,
                     "y": int(parts[5]) if len(parts) > 5 else 0,
                 })
-        return {
+        result = {
             "ok": True,
             "dashboard_name": str(dashboard.get("看板名称", "")),
             "domain": str(dashboard.get("所属业务域", "")),
@@ -53,6 +72,13 @@ class DashboardLayoutService(BaseModuleService):
             "cards": cards,
             "card_count": len(cards),
         }
+        import_id = dashboard.get("_import_id")
+        if import_id:
+            from app.services import layout_import
+
+            result["import_id"] = int(import_id)
+            result["bindings"] = layout_import.binding_snapshot_for_import(int(import_id))
+        return result
 
     def get_dashboards_by_domain(self, domain: str) -> list[dict[str, Any]]:
         """获取某业务域下所有看板。"""

@@ -16,9 +16,14 @@
 │   └── vite.config.ts        dev server 配置（open: false）
 ├── backend/                  FastAPI（Python） 后端
 │   ├── app/routers/resource.py  通用查询/导出/登记/动作接口
+│   ├── app/routers/layout_imports.py  布局导入/核验/订阅日报接口
 │   ├── app/services/<key>.py    每个模块独立领域逻辑
+│   ├── app/services/layout_import.py  跨域布局导入与指标绑定核验
 │   ├── app/services/base.py     共享服务骨架
-│   └── app/store.py          内存数据仓库与示例数据
+│   ├── app/layout_store.py      导入批次/绑定/订阅/投递的进程内仓库
+│   ├── app/store.py          内存数据仓库与示例数据
+│   ├── samples/revenue_layout.json  含两张卡片的示例布局文件
+│   └── tests/                领域服务回归用例
 ├── .gitignore
 └── docker-compose.yml
 ```
@@ -45,6 +50,50 @@ npm run dev
 
 前端默认监听 `http://127.0.0.1:5173/`，dev server 不会自动打开浏览器，
 需要自己访问。`/api` 由 vite 代理到后端 `http://127.0.0.1:8000`。
+
+### 布局导入（跨业务域）
+
+原来的看板布局只能在所属业务域内消费，导出的布局文件也不带指标绑定。
+`布局导入` 页面（`/layout-import`）用于把一个业务域的看板布局搬到另一个业务域：
+
+1. **导入**：上传 JSON/YAML 布局文件（或点「载入示例布局」读取
+   `backend/samples/revenue_layout.json`）。解析卡片位置、指标名称、来源域口径和示例数据。
+2. **核验**：按目标域指标重新比对粒度、聚合函数和口径版本，输出待核项。
+   文件里自带的 `confirmed` 等「已确认」声明一律不作为核验依据，只留作审计记录；
+   同名指标也不会因为名字相同就算确认，唯一认可的自动确认依据是目标域核验台账
+   （活跃设备数此前已核验，可直接复用）。
+3. **核准**：对销售额这类粒度不一致的绑定，必须按目标域指标的真实粒度人工核准
+   （目标域销售额按小时，核准成「按日」会被拒绝），核准结果写入核验台账。
+4. **订阅日报**：导入时自动创建订阅。日报只发布已核验的数值，未核验卡片保留行、
+   数值留空并标注「待核不发布」和待核原因；每份日报都保存实际采用的绑定快照
+   （`binding_id` / 粒度 / 聚合函数 / 口径版本）。
+5. **对比与重算**：同一导入的两次投递可以逐卡对比数值和待核项；口径变更会把使用该
+   指标的绑定标记为待复核，`caliber-recalc` 按 `binding_id` 列出重算值和引用过它的日报。
+
+```bash
+# 导入示例布局（会自动创建订阅）
+curl -X POST http://127.0.0.1:8000/api/layout-imports -H 'Content-Type: application/json' -d '{}'
+# 发送一次日报
+curl -X POST http://127.0.0.1:8000/api/layout-imports/1/send -H 'Content-Type: application/json' -d '{}'
+# 核验销售额绑定为「按小时」
+curl -X POST http://127.0.0.1:8000/api/layout-imports/1/bindings/BD-0001/confirm \
+  -H 'Content-Type: application/json' -d '{"granularity":"按小时"}'
+```
+
+主要接口：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/layout-imports` | 导入记录列表 |
+| POST | `/api/layout-imports` | 导入布局（JSON 请求体、纯文本文件内容或 `path`） |
+| GET | `/api/layout-imports/{id}` | 导入详情：卡片、绑定、待核项、订阅、投递 |
+| POST | `/api/layout-imports/{id}/bindings/{binding_id}/confirm` | 按目标域粒度核准绑定 |
+| POST | `/api/layout-imports/{id}/send` | 按默认订阅发送日报 |
+| GET | `/api/layout-imports/deliveries/compare?left=&right=` | 对比两次日报的数值与待核项 |
+| POST | `/api/layout-imports/caliber-changes` | 变更指标口径并标记受影响绑定 |
+| GET | `/api/layout-imports/caliber-recalc?metric_code=` | 按绑定重算并定位使用过的日报 |
+
+后端回归用例：`cd backend && .venv/bin/python -m unittest discover -s tests -v`
 
 ## 业务模块
 
